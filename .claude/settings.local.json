@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(where:*)",
+      "Bash(where npm:*)",
+      "Bash(cmd /c \"where node & where npm\")",
+      "Bash(PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npx next build:*)",
+      "Bash(npm run build:*)",
+      "Bash(cmd /c \"where node\")",
+      "Bash(cmd /c \"dir /b \"\"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\\\\public\"\" 2>&1\")",
+      "Bash(cmd /c \"mkdir \"\"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\\\\public\"\" 2>&1\")",
+      "WebFetch(domain:bizgroup.ae)",
+      "Bash(cmd /c \"dir \"\"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\\\\public\"\"\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\")"
+    ]
+  }
+}
