@@ -39,7 +39,7 @@ export function WaitingForSession({ sessionId }: WaitingForSessionProps) {
       )
       .subscribe();
 
-    // Also poll every 5 seconds as a fallback
+    // Poll every 30 seconds as a fallback (realtime handles the fast path)
     const interval = setInterval(async () => {
       const { data } = await supabase
         .from('sessions')
@@ -52,7 +52,7 @@ export function WaitingForSession({ sessionId }: WaitingForSessionProps) {
       } else if (data?.status === 'ended') {
         setStatus('ended');
       }
-    }, 5000);
+    }, 30000);
 
     return () => {
       supabase.removeChannel(channel);

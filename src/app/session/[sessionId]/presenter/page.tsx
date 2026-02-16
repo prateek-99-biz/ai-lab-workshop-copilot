@@ -28,55 +28,57 @@ export default async function PresenterPage({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch session
-  const { data: session, error } = await supabase
-    .from('sessions')
-    .select(`
-      id,
-      join_code,
-      status,
-      current_step_id,
-      timer_end_at,
-      organization:organizations(name),
-      template:workshop_templates(name)
-    `)
-    .eq('id', sessionId)
-    .eq('organization_id', facilitator.organization_id)
-    .single();
-
-  if (error || !session) {
-    notFound();
-  }
-
-  // Fetch snapshot modules and steps
-  const { data: modules } = await supabase
-    .from('session_snapshot_modules')
-    .select(`
-      id,
-      title,
-      order_index,
-      steps:session_snapshot_steps(
+  // Fetch session, modules, and participant count in parallel
+  const [sessionResult, modulesResult, countResult] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select(`
+        id,
+        join_code,
+        status,
+        current_step_id,
+        timer_end_at,
+        organization:organizations(name),
+        template:workshop_templates(name)
+      `)
+      .eq('id', sessionId)
+      .eq('organization_id', facilitator.organization_id)
+      .single(),
+    supabase
+      .from('session_snapshot_modules')
+      .select(`
         id,
         title,
         order_index,
-        estimated_minutes,
-        is_required
-      )
-    `)
-    .eq('session_id', sessionId)
-    .order('order_index');
+        steps:session_snapshot_steps(
+          id,
+          title,
+          order_index,
+          estimated_minutes,
+          is_required
+        )
+      `)
+      .eq('session_id', sessionId)
+      .order('order_index'),
+    supabase
+      .from('participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', sessionId),
+  ]);
+
+  const session = sessionResult.data;
+  if (sessionResult.error || !session) {
+    notFound();
+  }
+
+  const modules = modulesResult.data;
+  const participantCount = countResult.count;
 
   // Sort steps within modules
   const sortedModules = modules?.map(module => ({
     ...module,
     steps: module.steps?.sort((a, b) => a.order_index - b.order_index),
   })).sort((a, b) => a.order_index - b.order_index);
-
-  // Get participant count
-  const { count: participantCount } = await supabase
-    .from('participants')
-    .select('id', { count: 'exact', head: true })
-    .eq('session_id', sessionId);
 
   return (
     <PresenterView

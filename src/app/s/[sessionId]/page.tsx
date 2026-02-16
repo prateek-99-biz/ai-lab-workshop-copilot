@@ -55,38 +55,38 @@ export default async function SessionPage({ params }: PageProps) {
     );
   }
 
-  // Fetch snapshot modules and steps
-  const { data: modules } = await supabase
-    .from('session_snapshot_modules')
-    .select(`
-      id,
-      title,
-      objective,
-      order_index,
-      steps:session_snapshot_steps(
+  // Fetch snapshot modules/steps and submissions in parallel
+  const [{ data: modules }, { data: submissions }] = await Promise.all([
+    supabase
+      .from('session_snapshot_modules')
+      .select(`
         id,
         title,
-        instruction_markdown,
+        objective,
         order_index,
-        estimated_minutes,
-        is_required,
-        prompt_blocks:session_snapshot_prompt_blocks(
+        steps:session_snapshot_steps(
           id,
           title,
-          content_markdown,
+          instruction_markdown,
           order_index,
-          is_copyable
+          estimated_minutes,
+          is_required,
+          prompt_blocks:session_snapshot_prompt_blocks(
+            id,
+            title,
+            content_markdown,
+            order_index,
+            is_copyable
+          )
         )
-      )
-    `)
-    .eq('session_id', sessionId)
-    .order('order_index');
-
-  // Fetch participant's submissions
-  const { data: submissions } = await supabase
-    .from('submissions')
-    .select('id, step_id, content')
-    .eq('participant_id', participant.participant_id);
+      `)
+      .eq('session_id', sessionId)
+      .order('order_index'),
+    supabase
+      .from('submissions')
+      .select('id, step_id, content')
+      .eq('participant_id', participant.participant_id),
+  ]);
 
   // Sort steps within modules
   const sortedModules = modules?.map(module => ({

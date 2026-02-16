@@ -105,10 +105,10 @@ export function ParticipantList({
     setIsLoading(false);
   }, [sessionId]);
 
-  // Initial fetch + periodic refresh
+  // Initial fetch + infrequent fallback refresh (realtime handles fast updates)
   useEffect(() => {
     fetchParticipants();
-    const interval = setInterval(fetchParticipants, 8000);
+    const interval = setInterval(fetchParticipants, 30000);
     return () => clearInterval(interval);
   }, [fetchParticipants]);
 

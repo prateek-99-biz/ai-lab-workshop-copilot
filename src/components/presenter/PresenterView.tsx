@@ -103,9 +103,9 @@ export function PresenterView({
   useEffect(() => {
     const supabase = createClient();
 
-    // Subscribe to participants joining
-    const participantChannel = supabase
-      .channel(`participants:${initialSession.id}`)
+    // Combined presenter channel - listen for participants, stuck signals, submissions, and Q&A
+    const presenterChannel = supabase
+      .channel(`presenter:${initialSession.id}`)
       .on(
         'postgres_changes',
         {
@@ -118,11 +118,6 @@ export function PresenterView({
           setParticipantCount(prev => prev + 1);
         }
       )
-      .subscribe();
-
-    // Subscribe to stuck signals
-    const analyticsChannel = supabase
-      .channel(`analytics:${initialSession.id}`)
       .on(
         'postgres_changes',
         {
@@ -134,16 +129,23 @@ export function PresenterView({
         (payload) => {
           if (payload.new.event_type === 'stuck_signal') {
             setStuckCount(prev => prev + 1);
-            // Reset after 30 seconds
             setTimeout(() => setStuckCount(prev => Math.max(0, prev - 1)), 30000);
           }
         }
       )
-      .subscribe();
-
-    // Subscribe to Q&A changes
-    const qaChannel = supabase
-      .channel(`presenter-qa:${initialSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'submissions',
+          filter: `session_id=eq.${initialSession.id}`,
+        },
+        () => {
+          // Refresh completion count when a new submission comes in
+          fetchCompletions();
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -159,9 +161,7 @@ export function PresenterView({
       .subscribe();
 
     return () => {
-      supabase.removeChannel(participantChannel);
-      supabase.removeChannel(analyticsChannel);
-      supabase.removeChannel(qaChannel);
+      supabase.removeChannel(presenterChannel);
     };
   }, [initialSession.id]);
 
@@ -181,7 +181,7 @@ export function PresenterView({
 
   useEffect(() => {
     fetchCompletions();
-    const interval = setInterval(fetchCompletions, 5000);
+    const interval = setInterval(fetchCompletions, 30000);
     return () => clearInterval(interval);
   }, [fetchCompletions]);
 

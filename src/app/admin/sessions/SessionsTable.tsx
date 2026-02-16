@@ -167,7 +167,6 @@ export function SessionsTable({ sessions: initialSessions }: SessionsTableProps)
       ));
       setEditSession(null);
       toast.success('Session updated');
-      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update session');
     } finally {
@@ -189,7 +188,6 @@ export function SessionsTable({ sessions: initialSessions }: SessionsTableProps)
       setSessions(prev => prev.filter(s => s.id !== deleteSession.id));
       setDeleteSession(null);
       toast.success('Session deleted');
-      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete session');
     } finally {
