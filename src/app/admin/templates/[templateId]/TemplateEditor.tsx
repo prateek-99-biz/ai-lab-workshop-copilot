@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Save,
+  Pencil,
   Plus,
   Trash2,
   ChevronDown,
@@ -374,7 +375,7 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
               className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
               title="Edit module"
             >
-              <Save className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setIsDeleting(true)}
@@ -528,7 +529,7 @@ function StepRow({ step, moduleId, onChanged }: {
             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
             title="Edit step"
           >
-            <Save className="w-3 h-3" />
+            <Pencil className="w-3 h-3" />
           </button>
           <button
             onClick={() => setIsDeleting(true)}
@@ -691,7 +692,7 @@ function PromptBlockRow({ block, onChanged }: {
             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
             title="Edit block"
           >
-            <Save className="w-3 h-3" />
+            <Pencil className="w-3 h-3" />
           </button>
           <button
             onClick={() => setIsDeleting(true)}
