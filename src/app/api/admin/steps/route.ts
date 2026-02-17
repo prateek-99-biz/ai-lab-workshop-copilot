@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to create step' }, { status: 500 });
     }
 
+    revalidatePath('/admin/modules');
     return NextResponse.json({ success: true, data: step });
   } catch (error) {
     console.error('Steps POST error:', error);

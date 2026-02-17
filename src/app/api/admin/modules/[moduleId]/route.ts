@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -57,6 +58,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Failed to update module' }, { status: 500 });
     }
 
+    revalidatePath('/admin/modules');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Module PATCH error:', error);
@@ -106,6 +108,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Failed to delete module' }, { status: 500 });
     }
 
+    revalidatePath('/admin/modules');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Module DELETE error:', error);
