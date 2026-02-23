@@ -97,7 +97,7 @@ export default function JoinPage() {
                     setError('');
                   }}
                   placeholder="Enter code (e.g., A7K3 or happy-river)"
-                  className="text-center text-2xl font-mono tracking-wider h-16"
+                  className="text-center text-2xl font-mono tracking-wider h-16 border-gray-300 bg-white text-gray-900 placeholder:text-gray-400"
                   autoFocus
                   autoComplete="off"
                   autoCapitalize="characters"

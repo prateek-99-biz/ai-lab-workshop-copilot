@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     revalidatePath('/admin/modules');
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true, data: mod });
   } catch (error) {
     console.error('Modules POST error:', error);

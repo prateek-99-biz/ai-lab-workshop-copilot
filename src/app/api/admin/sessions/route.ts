@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Verify template belongs to this org
     const { data: template, error: templateError } = await serviceClient
       .from('workshop_templates')
-      .select('id, name')
+      .select('id, name, ai_tool_name, ai_tool_url')
       .eq('id', data.template_id)
       .eq('organization_id', facilitator.organization_id)
       .single();
@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
         event_type: data.event_type,
         event_date: data.event_date,
         scheduled_at: data.event_date,
+        ai_tool_name: template.ai_tool_name ?? 'ChatGPT',
+        ai_tool_url: template.ai_tool_url ?? 'https://chat.openai.com',
       })
       .select('id')
       .single();

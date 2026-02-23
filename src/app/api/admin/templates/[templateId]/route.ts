@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -7,6 +8,8 @@ const updateTemplateSchema = z.object({
   description: z.string().max(2000).optional(),
   estimated_duration_minutes: z.number().int().min(1).max(600).optional(),
   is_published: z.boolean().optional(),
+  ai_tool_name: z.string().min(1).max(100).optional(),
+  ai_tool_url: z.string().url().max(2000).optional(),
 });
 
 async function verifyAccess(supabase: ReturnType<typeof createServiceClient> extends Promise<infer T> ? T : never, templateId: string, userId: string) {
@@ -39,6 +42,12 @@ export async function GET(
     const { templateId } = await params;
     const serviceClient = await createServiceClient();
 
+    // Verify the template belongs to the user's organization
+    const access = await verifyAccess(serviceClient, templateId, user.id);
+    if (!access) {
+      return NextResponse.json({ success: false, error: 'Template not found or access denied' }, { status: 404 });
+    }
+
     const { data: template, error } = await serviceClient
       .from('workshop_templates')
       .select(`
@@ -47,6 +56,8 @@ export async function GET(
         description,
         estimated_duration_minutes,
         is_published,
+        ai_tool_name,
+        ai_tool_url,
         created_at,
         modules(
           id,
@@ -126,15 +137,23 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: validation.error.errors[0].message }, { status: 400 });
     }
 
+    const updateData = {
+      ...validation.data,
+      ...(validation.data.description !== undefined && {
+        description: validation.data.description || null,
+      }),
+    };
+
     const { error } = await serviceClient
       .from('workshop_templates')
-      .update(validation.data)
+      .update(updateData)
       .eq('id', templateId);
 
     if (error) {
       return NextResponse.json({ success: false, error: 'Failed to update template' }, { status: 500 });
     }
 
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Template PATCH error:', error);
@@ -186,6 +205,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Failed to delete template' }, { status: 500 });
     }
 
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Template DELETE error:', error);

@@ -72,16 +72,15 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
         className={cn(
-          'relative w-full mx-4 rounded-xl shadow-xl',
+          'relative w-full mx-4 bg-white rounded-xl shadow-xl border border-gray-200',
           'transform transition-all',
           sizes[size],
           className
         )}
-        style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 id="modal-title" className="text-lg font-semibold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
@@ -94,7 +93,7 @@ export function Modal({
         )}
         
         {/* Content */}
-        <div className={cn(!title && 'pt-4')}>
+        <div className={cn('px-6 py-5', !title && 'pt-6')}>
           {children}
         </div>
       </div>
@@ -127,7 +126,7 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <div className="px-6 pb-6">
+      <div>
         <p className="text-gray-600 mb-6">{description}</p>
         <div className="flex gap-3 justify-end">
           <button

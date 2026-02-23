@@ -71,6 +71,8 @@ export interface WorkshopTemplate {
   description: string | null;
   estimated_duration_minutes: number;
   is_published: boolean;
+  ai_tool_name: string;
+  ai_tool_url: string;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +83,8 @@ export interface WorkshopTemplateInsert {
   description?: string | null;
   estimated_duration_minutes?: number;
   is_published?: boolean;
+  ai_tool_name?: string;
+  ai_tool_url?: string;
 }
 
 export interface WorkshopTemplateWithModules extends WorkshopTemplate {
@@ -188,6 +192,8 @@ export interface Session {
   poc_name: string | null;
   event_type: EventCategory | null;
   event_date: string | null;
+  ai_tool_name: string;
+  ai_tool_url: string;
   created_at: string;
   updated_at: string;
 }
@@ -205,6 +211,8 @@ export interface SessionInsert {
   poc_name?: string | null;
   event_type?: EventCategory | null;
   event_date?: string | null;
+  ai_tool_name?: string;
+  ai_tool_url?: string;
 }
 
 export interface SessionUpdate {

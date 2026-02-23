@@ -15,8 +15,7 @@ export default async function ModulesPage() {
 
   const orgId = facilitator?.organization_id;
 
-  // Fetch all templates with their modules and step counts
-  const { data: templates } = await supabase
+  const { data: templates, error } = await supabase
     .from('workshop_templates')
     .select(`
       id,
@@ -26,22 +25,56 @@ export default async function ModulesPage() {
         title,
         objective,
         order_index,
-        steps(id)
+        steps:module_steps(id)
       )
     `)
     .eq('organization_id', orgId || '')
     .order('name');
 
-  const normalizedTemplates = (templates || []).map(t => ({
+  if (error) {
+    console.error('Modules page query error:', error);
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Modules</h1>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Layers className="w-12 h-12 mx-auto mb-4 text-red-400" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Modules</h3>
+            <p className="text-gray-600">Something went wrong while loading modules. Please try refreshing the page.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  interface NormalizedModule {
+    id: string;
+    title: string;
+    objective: string | null;
+    order_index: number;
+    step_count: number;
+  }
+
+  interface NormalizedTemplate {
+    id: string;
+    name: string;
+    modules: NormalizedModule[];
+  }
+
+  const normalizedTemplates: NormalizedTemplate[] = (templates || []).map(t => ({
     id: t.id,
     name: t.name,
-    modules: ((t.modules as any[]) || [])
-      .sort((a: any, b: any) => a.order_index - b.order_index)
-      .map((m: any) => ({
+    modules: ((t.modules as { id: string; title: string; objective: string | null; order_index: number; steps: { id: string }[] }[]) || [])
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((m) => ({
         id: m.id,
         title: m.title,
-        objective: m.objective as string | null,
-        order_index: m.order_index as number,
+        objective: m.objective,
+        order_index: m.order_index,
         step_count: Array.isArray(m.steps) ? m.steps.length : 0,
       })),
   }));

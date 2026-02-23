@@ -59,6 +59,7 @@ export async function PATCH(
     }
 
     revalidatePath('/admin/modules');
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Module PATCH error:', error);
@@ -109,6 +110,7 @@ export async function DELETE(
     }
 
     revalidatePath('/admin/modules');
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Module DELETE error:', error);

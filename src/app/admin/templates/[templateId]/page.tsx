@@ -29,6 +29,8 @@ export default async function TemplateDetailPage({ params }: PageProps) {
       description,
       estimated_duration_minutes,
       is_published,
+      ai_tool_name,
+      ai_tool_url,
       organization_id,
       created_at,
       modules(

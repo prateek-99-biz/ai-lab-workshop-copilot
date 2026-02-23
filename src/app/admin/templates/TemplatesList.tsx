@@ -23,8 +23,11 @@ export function TemplatesList({ templates: initialTemplates }: { templates: Temp
   const [templates, setTemplates] = useState(initialTemplates);
   const [deleteTemplate, setDeleteTemplate] = useState<Template | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const handleTogglePublish = async (template: Template) => {
+    if (togglingId) return;
+    setTogglingId(template.id);
     try {
       const response = await fetch(`/api/admin/templates/${template.id}`, {
         method: 'PATCH',
@@ -40,6 +43,8 @@ export function TemplatesList({ templates: initialTemplates }: { templates: Temp
       toast.success(template.is_published ? 'Template unpublished' : 'Template published');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update template');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -105,21 +110,22 @@ export function TemplatesList({ templates: initialTemplates }: { templates: Temp
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={() => handleTogglePublish(template)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    disabled={togglingId === template.id}
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                     title={template.is_published ? 'Unpublish' : 'Publish'}
                   >
                     {template.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                   <Link
                     href={`/admin/templates/${template.id}`}
-                    className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                     title="Edit template"
                   >
                     <Pencil className="w-4 h-4" />
                   </Link>
                   <button
                     onClick={() => setDeleteTemplate(template)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete template"
                   >
                     <Trash2 className="w-4 h-4" />

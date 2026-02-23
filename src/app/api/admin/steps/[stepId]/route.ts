@@ -61,6 +61,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Failed to update step' }, { status: 500 });
     }
 
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Step PATCH error:', error);
@@ -112,6 +113,7 @@ export async function DELETE(
     }
 
     revalidatePath('/admin/modules');
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Step DELETE error:', error);

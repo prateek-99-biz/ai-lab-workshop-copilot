@@ -80,7 +80,7 @@ export default function NewTemplatePage() {
               label="Estimated Duration (minutes)"
               type="number"
               value={form.estimated_duration_minutes}
-              onChange={(e) => setForm(prev => ({ ...prev, estimated_duration_minutes: parseInt(e.target.value) || 0 }))}
+              onChange={(e) => setForm(prev => ({ ...prev, estimated_duration_minutes: Math.max(1, parseInt(e.target.value) || 1) }))}
               min={1}
             />
 

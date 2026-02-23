@@ -13,7 +13,10 @@
       "Bash(cmd /c \"mkdir \"\"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\\\\public\"\" 2>&1\")",
       "WebFetch(domain:bizgroup.ae)",
       "Bash(cmd /c \"dir \"\"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\\\\public\"\"\")",
-      "Bash(dir /s /b \"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\")"
+      "Bash(dir /s /b \"C:\\\\Users\\\\prateek.mishra\\\\OneDrive - bizgroup.ae\\\\Desktop\\\\Workshop Copilot\")",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

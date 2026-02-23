@@ -97,16 +97,22 @@ export default async function AdminDashboard() {
           <CardContent className="p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
             <div className="space-y-3">
-              <Link href="/admin/templates/new" className="block">
-                <div className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
-                  Create New Template
-                  <ArrowRight className="w-4 h-4" />
+              <Link href="/admin/templates/new" className="block group">
+                <div className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:bg-brand-50 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center shrink-0 group-hover:bg-brand-200 transition-colors">
+                    <FileText className="w-4 h-4 text-brand-600" />
+                  </div>
+                  <span className="flex-1">Create New Template</span>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-600 transition-colors" />
                 </div>
               </Link>
-              <Link href="/admin/sessions/new" className="block">
-                <div className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
-                  Start New Session
-                  <ArrowRight className="w-4 h-4" />
+              <Link href="/admin/sessions/new" className="block group">
+                <div className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-brand-300 hover:bg-brand-50 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0 group-hover:bg-green-200 transition-colors">
+                    <PlayCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="flex-1">Start New Session</span>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-brand-600 transition-colors" />
                 </div>
               </Link>
             </div>

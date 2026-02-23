@@ -101,7 +101,7 @@ export function NewSessionForm({ templates }: NewSessionFormProps) {
               <select
                 value={formData.template_id}
                 onChange={(e) => updateField('template_id', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white text-gray-900 font-medium"
               >
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>

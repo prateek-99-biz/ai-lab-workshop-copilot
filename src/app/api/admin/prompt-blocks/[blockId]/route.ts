@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -61,6 +62,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Failed to update prompt block' }, { status: 500 });
     }
 
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Block PATCH error:', error);
@@ -113,6 +115,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Failed to delete prompt block' }, { status: 500 });
     }
 
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Block DELETE error:', error);

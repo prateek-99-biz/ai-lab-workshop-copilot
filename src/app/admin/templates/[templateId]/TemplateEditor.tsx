@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Save,
   Pencil,
@@ -14,8 +13,13 @@ import {
   Clock,
   Eye,
   EyeOff,
+  Layers,
+  ListChecks,
+  MessageSquareText,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, Button, Input, TextArea, Modal, ConfirmModal } from '@/components/ui';
+import { TemplatePreview } from './TemplatePreview';
 import toast from 'react-hot-toast';
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -51,6 +55,8 @@ interface Template {
   description: string | null;
   estimated_duration_minutes: number;
   is_published: boolean;
+  ai_tool_name: string;
+  ai_tool_url: string;
   organization_id: string;
   created_at: string;
   modules: Module[];
@@ -58,16 +64,19 @@ interface Template {
 
 // ─── Main TemplateEditor ────────────────────────────────────────────────
 export function TemplateEditor({ template: initialTemplate }: { template: Template }) {
-  const router = useRouter();
   const [template, setTemplate] = useState(initialTemplate);
   const [isSaving, setIsSaving] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const [editingMeta, setEditingMeta] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   // Template metadata form state
   const [metaForm, setMetaForm] = useState({
     name: template.name,
     description: template.description || '',
     estimated_duration_minutes: template.estimated_duration_minutes,
+    ai_tool_name: template.ai_tool_name || 'ChatGPT',
+    ai_tool_url: template.ai_tool_url || 'https://chat.openai.com',
   });
 
   const saveTemplateMeta = async () => {
@@ -91,6 +100,8 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
   };
 
   const togglePublish = async () => {
+    if (isToggling) return;
+    setIsToggling(true);
     try {
       const res = await fetch(`/api/admin/templates/${template.id}`, {
         method: 'PATCH',
@@ -103,12 +114,119 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
       toast.success(template.is_published ? 'Template unpublished' : 'Template published');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to toggle publish');
+    } finally {
+      setIsToggling(false);
     }
   };
 
-  const refreshTemplate = useCallback(() => {
-    router.refresh();
-  }, [router]);
+  // ── Granular state updaters (no more router.refresh) ──────────────
+  const handleModuleAdded = useCallback((newModule: { id: string; title: string; objective: string | null; order_index: number }) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: [...prev.modules, { ...newModule, steps: [] }],
+    }));
+  }, []);
+
+  const handleModuleUpdated = useCallback((moduleId: string, updates: Partial<Module>) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m => m.id === moduleId ? { ...m, ...updates } : m),
+    }));
+  }, []);
+
+  const handleModuleDeleted = useCallback((moduleId: string) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.filter(m => m.id !== moduleId),
+    }));
+  }, []);
+
+  const handleStepAdded = useCallback((moduleId: string, newStep: { id: string; title: string; order_index: number; instruction_markdown: string; estimated_minutes: number | null; is_required: boolean }) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m =>
+        m.id === moduleId
+          ? { ...m, steps: [...m.steps, { ...newStep, prompt_blocks: [] }] }
+          : m
+      ),
+    }));
+  }, []);
+
+  const handleStepUpdated = useCallback((moduleId: string, stepId: string, updates: Partial<Step>) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m =>
+        m.id === moduleId
+          ? { ...m, steps: m.steps.map(s => s.id === stepId ? { ...s, ...updates } : s) }
+          : m
+      ),
+    }));
+  }, []);
+
+  const handleStepDeleted = useCallback((moduleId: string, stepId: string) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m =>
+        m.id === moduleId
+          ? { ...m, steps: m.steps.filter(s => s.id !== stepId) }
+          : m
+      ),
+    }));
+  }, []);
+
+  const handleBlockAdded = useCallback((moduleId: string, stepId: string, newBlock: { id: string; title: string; order_index: number; content_markdown: string; is_copyable: boolean }) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m =>
+        m.id === moduleId
+          ? {
+              ...m,
+              steps: m.steps.map(s =>
+                s.id === stepId
+                  ? { ...s, prompt_blocks: [...s.prompt_blocks, newBlock] }
+                  : s
+              ),
+            }
+          : m
+      ),
+    }));
+  }, []);
+
+  const handleBlockUpdated = useCallback((moduleId: string, stepId: string, blockId: string, updates: Partial<PromptBlock>) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m =>
+        m.id === moduleId
+          ? {
+              ...m,
+              steps: m.steps.map(s =>
+                s.id === stepId
+                  ? { ...s, prompt_blocks: s.prompt_blocks.map(b => b.id === blockId ? { ...b, ...updates } : b) }
+                  : s
+              ),
+            }
+          : m
+      ),
+    }));
+  }, []);
+
+  const handleBlockDeleted = useCallback((moduleId: string, stepId: string, blockId: string) => {
+    setTemplate(prev => ({
+      ...prev,
+      modules: prev.modules.map(m =>
+        m.id === moduleId
+          ? {
+              ...m,
+              steps: m.steps.map(s =>
+                s.id === stepId
+                  ? { ...s, prompt_blocks: s.prompt_blocks.filter(b => b.id !== blockId) }
+                  : s
+              ),
+            }
+          : m
+      ),
+    }));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -132,10 +250,25 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
                 label="Estimated Duration (minutes)"
                 type="number"
                 value={metaForm.estimated_duration_minutes}
-                onChange={(e) => setMetaForm(prev => ({ ...prev, estimated_duration_minutes: parseInt(e.target.value) || 0 }))}
+                onChange={(e) => setMetaForm(prev => ({ ...prev, estimated_duration_minutes: parseInt(e.target.value) || 1 }))}
+                min={1}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="AI Tool Button Label"
+                  value={metaForm.ai_tool_name}
+                  onChange={(e) => setMetaForm(prev => ({ ...prev, ai_tool_name: e.target.value }))}
+                  placeholder="e.g. ChatGPT, Claude, Gemini"
+                />
+                <Input
+                  label="AI Tool URL"
+                  value={metaForm.ai_tool_url}
+                  onChange={(e) => setMetaForm(prev => ({ ...prev, ai_tool_url: e.target.value }))}
+                  placeholder="https://chat.openai.com"
+                />
+              </div>
               <div className="flex gap-2">
-                <Button onClick={saveTemplateMeta} disabled={isSaving}>
+                <Button onClick={saveTemplateMeta} disabled={!metaForm.name.trim() || isSaving}>
                   <Save className="w-4 h-4 mr-1" />
                   {isSaving ? 'Saving...' : 'Save'}
                 </Button>
@@ -144,6 +277,8 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
                     name: template.name,
                     description: template.description || '',
                     estimated_duration_minutes: template.estimated_duration_minutes,
+                    ai_tool_name: template.ai_tool_name || 'ChatGPT',
+                    ai_tool_url: template.ai_tool_url || 'https://chat.openai.com',
                   });
                   setEditingMeta(false);
                 }}>
@@ -173,10 +308,17 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
                     {template.estimated_duration_minutes} min
                   </span>
                   <span>{template.modules.length} modules</span>
+                  <span className="inline-flex items-center gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    {template.ai_tool_name || 'ChatGPT'}
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={togglePublish}>
+                <Button variant="secondary" size="sm" onClick={() => setIsPreviewing(true)}>
+                  <Eye className="w-4 h-4 mr-1" /> Preview
+                </Button>
+                <Button variant="secondary" size="sm" onClick={togglePublish} disabled={isToggling}>
                   {template.is_published ? (
                     <><EyeOff className="w-4 h-4 mr-1" /> Unpublish</>
                   ) : (
@@ -194,29 +336,47 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
 
       {/* Modules */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Modules</h2>
-          <AddModuleButton templateId={template.id} currentCount={template.modules.length} onAdded={refreshTemplate} />
-        </div>
+        <h2 className="text-lg font-semibold text-gray-900">Modules</h2>
 
         {template.modules.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
               <FileText className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-              <p className="text-gray-600">No modules yet. Add your first module to get started.</p>
+              <p className="text-gray-600 mb-4">No modules yet. Add your first module to get started.</p>
             </CardContent>
           </Card>
         ) : (
-          template.modules.map((mod) => (
+          template.modules.map((mod, index) => (
             <ModuleCard
               key={mod.id}
               module={mod}
+              displayIndex={index + 1}
               templateId={template.id}
-              onChanged={refreshTemplate}
+              onModuleUpdated={handleModuleUpdated}
+              onModuleDeleted={handleModuleDeleted}
+              onStepAdded={handleStepAdded}
+              onStepUpdated={handleStepUpdated}
+              onStepDeleted={handleStepDeleted}
+              onBlockAdded={handleBlockAdded}
+              onBlockUpdated={handleBlockUpdated}
+              onBlockDeleted={handleBlockDeleted}
             />
           ))
         )}
+
+        <AddModuleButton templateId={template.id} currentCount={template.modules.length} onAdded={handleModuleAdded} />
       </div>
+
+      {/* Template Preview */}
+      {isPreviewing && (
+        <TemplatePreview
+          templateName={template.name}
+          modules={template.modules}
+          aiToolName={template.ai_tool_name || 'ChatGPT'}
+          aiToolUrl={template.ai_tool_url || 'https://chat.openai.com'}
+          onClose={() => setIsPreviewing(false)}
+        />
+      )}
     </div>
   );
 }
@@ -225,7 +385,7 @@ export function TemplateEditor({ template: initialTemplate }: { template: Templa
 function AddModuleButton({ templateId, currentCount, onAdded }: {
   templateId: string;
   currentCount: number;
-  onAdded: () => void;
+  onAdded: (newModule: { id: string; title: string; objective: string | null; order_index: number }) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -248,10 +408,15 @@ function AddModuleButton({ templateId, currentCount, onAdded }: {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       toast.success('Module added');
+      onAdded({
+        id: data.data.id,
+        title: data.data.title,
+        objective: data.data.objective ?? (objective.trim() || null),
+        order_index: data.data.order_index,
+      });
       setTitle('');
       setObjective('');
       setIsOpen(false);
-      onAdded();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add module');
     } finally {
@@ -261,11 +426,17 @@ function AddModuleButton({ templateId, currentCount, onAdded }: {
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setIsOpen(true)}>
-        <Plus className="w-4 h-4 mr-1" />
-        Add Module
-      </Button>
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Add Module">
+      <button
+        onClick={() => setIsOpen(true)}
+        className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 bg-white hover:border-brand-400 hover:bg-brand-50/50 transition-all duration-150 cursor-pointer"
+      >
+        <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center shrink-0 group-hover:bg-brand-200 transition-colors">
+          <Layers className="w-4.5 h-4.5 text-brand-600" />
+        </div>
+        <span className="flex-1 text-left text-sm font-medium text-gray-500 group-hover:text-brand-700 transition-colors">Add a module…</span>
+        <Plus className="w-4 h-4 text-gray-400 group-hover:text-brand-600 transition-colors" />
+      </button>
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setTitle(''); setObjective(''); }} title="Add Module">
         <div className="space-y-4">
           <Input
             label="Module Title"
@@ -281,7 +452,7 @@ function AddModuleButton({ templateId, currentCount, onAdded }: {
             placeholder="What participants will learn"
           />
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setIsOpen(false); setTitle(''); setObjective(''); }}>Cancel</Button>
             <Button onClick={handleAdd} disabled={!title.trim() || isSaving}>
               {isSaving ? 'Adding...' : 'Add Module'}
             </Button>
@@ -293,14 +464,23 @@ function AddModuleButton({ templateId, currentCount, onAdded }: {
 }
 
 // ─── Module Card (collapsible) ──────────────────────────────────────────
-function ModuleCard({ module: mod, templateId, onChanged }: {
+function ModuleCard({ module: mod, displayIndex, templateId, onModuleUpdated, onModuleDeleted, onStepAdded, onStepUpdated, onStepDeleted, onBlockAdded, onBlockUpdated, onBlockDeleted }: {
   module: Module;
+  displayIndex: number;
   templateId: string;
-  onChanged: () => void;
+  onModuleUpdated: (moduleId: string, updates: Partial<Module>) => void;
+  onModuleDeleted: (moduleId: string) => void;
+  onStepAdded: (moduleId: string, newStep: { id: string; title: string; order_index: number; instruction_markdown: string; estimated_minutes: number | null; is_required: boolean }) => void;
+  onStepUpdated: (moduleId: string, stepId: string, updates: Partial<Step>) => void;
+  onStepDeleted: (moduleId: string, stepId: string) => void;
+  onBlockAdded: (moduleId: string, stepId: string, newBlock: { id: string; title: string; order_index: number; content_markdown: string; is_copyable: boolean }) => void;
+  onBlockUpdated: (moduleId: string, stepId: string, blockId: string, updates: Partial<PromptBlock>) => void;
+  onBlockDeleted: (moduleId: string, stepId: string, blockId: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [editForm, setEditForm] = useState({ title: mod.title, objective: mod.objective || '' });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -319,7 +499,7 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
       if (!data.success) throw new Error(data.error);
       toast.success('Module updated');
       setIsEditing(false);
-      onChanged();
+      onModuleUpdated(mod.id, { title: editForm.title.trim(), objective: editForm.objective.trim() || null });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update');
     } finally {
@@ -328,14 +508,17 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
   };
 
   const handleDelete = async () => {
+    setIsDeleteLoading(true);
     try {
       const res = await fetch(`/api/admin/modules/${mod.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       toast.success('Module deleted');
-      onChanged();
+      onModuleDeleted(mod.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete');
+    } finally {
+      setIsDeleteLoading(false);
     }
   };
 
@@ -356,7 +539,7 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded">
-                  Module {mod.order_index + 1}
+                  Module {displayIndex}
                 </span>
                 <h3 className="font-semibold text-gray-900 truncate">{mod.title}</h3>
               </div>
@@ -395,10 +578,19 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
                 <p className="text-sm text-gray-500 italic py-2">No steps in this module.</p>
               ) : (
                 mod.steps.map((step) => (
-                  <StepRow key={step.id} step={step} moduleId={mod.id} onChanged={onChanged} />
+                  <StepRow
+                    key={step.id}
+                    step={step}
+                    moduleId={mod.id}
+                    onStepUpdated={onStepUpdated}
+                    onStepDeleted={onStepDeleted}
+                    onBlockAdded={onBlockAdded}
+                    onBlockUpdated={onBlockUpdated}
+                    onBlockDeleted={onBlockDeleted}
+                  />
                 ))
               )}
-              <AddStepButton moduleId={mod.id} currentCount={mod.steps.length} onAdded={onChanged} />
+              <AddStepButton moduleId={mod.id} currentCount={mod.steps.length} onAdded={(newStep) => onStepAdded(mod.id, newStep)} />
             </div>
           </div>
         )}
@@ -420,7 +612,7 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
           />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={!editForm.title.trim() || isSaving}>
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
@@ -436,20 +628,26 @@ function ModuleCard({ module: mod, templateId, onChanged }: {
         description={`Delete "${mod.title}" and all its steps and prompt blocks? This cannot be undone.`}
         confirmText="Delete Module"
         variant="danger"
+        isLoading={isDeleteLoading}
       />
     </Card>
   );
 }
 
 // ─── Step Row (collapsible) ─────────────────────────────────────────────
-function StepRow({ step, moduleId, onChanged }: {
+function StepRow({ step, moduleId, onStepUpdated, onStepDeleted, onBlockAdded, onBlockUpdated, onBlockDeleted }: {
   step: Step;
   moduleId: string;
-  onChanged: () => void;
+  onStepUpdated: (moduleId: string, stepId: string, updates: Partial<Step>) => void;
+  onStepDeleted: (moduleId: string, stepId: string) => void;
+  onBlockAdded: (moduleId: string, stepId: string, newBlock: { id: string; title: string; order_index: number; content_markdown: string; is_copyable: boolean }) => void;
+  onBlockUpdated: (moduleId: string, stepId: string, blockId: string, updates: Partial<PromptBlock>) => void;
+  onBlockDeleted: (moduleId: string, stepId: string, blockId: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [editForm, setEditForm] = useState({
     title: step.title,
     instruction_markdown: step.instruction_markdown || '',
@@ -470,7 +668,7 @@ function StepRow({ step, moduleId, onChanged }: {
       if (!data.success) throw new Error(data.error);
       toast.success('Step updated');
       setIsEditing(false);
-      onChanged();
+      onStepUpdated(moduleId, step.id, editForm);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update step');
     } finally {
@@ -479,14 +677,17 @@ function StepRow({ step, moduleId, onChanged }: {
   };
 
   const handleDelete = async () => {
+    setIsDeleteLoading(true);
     try {
       const res = await fetch(`/api/admin/steps/${step.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       toast.success('Step deleted');
-      onChanged();
+      onStepDeleted(moduleId, step.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete step');
+    } finally {
+      setIsDeleteLoading(false);
     }
   };
 
@@ -556,10 +757,17 @@ function StepRow({ step, moduleId, onChanged }: {
               <p className="text-xs text-gray-400 italic">No prompt blocks.</p>
             ) : (
               step.prompt_blocks.map((block) => (
-                <PromptBlockRow key={block.id} block={block} onChanged={onChanged} />
+                <PromptBlockRow
+                  key={block.id}
+                  block={block}
+                  moduleId={moduleId}
+                  stepId={step.id}
+                  onBlockUpdated={onBlockUpdated}
+                  onBlockDeleted={onBlockDeleted}
+                />
               ))
             )}
-            <AddPromptBlockButton stepId={step.id} currentCount={step.prompt_blocks.length} onAdded={onChanged} />
+            <AddPromptBlockButton stepId={step.id} currentCount={step.prompt_blocks.length} onAdded={(newBlock) => onBlockAdded(moduleId, step.id, newBlock)} />
           </div>
         </div>
       )}
@@ -581,13 +789,14 @@ function StepRow({ step, moduleId, onChanged }: {
           <Input
             label="Duration (minutes)"
             type="number"
-            value={editForm.estimated_minutes ?? 0}
+            value={editForm.estimated_minutes ?? ''}
             onChange={(e) =>
               setEditForm(prev => ({
                 ...prev,
-                estimated_minutes: parseInt(e.target.value) || null,
+                estimated_minutes: e.target.value === '' ? null : Math.max(1, parseInt(e.target.value) || 1),
               }))
             }
+            min={1}
           />
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
             <input
@@ -599,7 +808,7 @@ function StepRow({ step, moduleId, onChanged }: {
           </label>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={!editForm.title.trim() || isSaving}>
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
@@ -614,18 +823,23 @@ function StepRow({ step, moduleId, onChanged }: {
         description={`Delete "${step.title}" and all its prompt blocks? This cannot be undone.`}
         confirmText="Delete Step"
         variant="danger"
+        isLoading={isDeleteLoading}
       />
     </div>
   );
 }
 
 // ─── Prompt Block Row ───────────────────────────────────────────────────
-function PromptBlockRow({ block, onChanged }: {
+function PromptBlockRow({ block, moduleId, stepId, onBlockUpdated, onBlockDeleted }: {
   block: PromptBlock;
-  onChanged: () => void;
+  moduleId: string;
+  stepId: string;
+  onBlockUpdated: (moduleId: string, stepId: string, blockId: string, updates: Partial<PromptBlock>) => void;
+  onBlockDeleted: (moduleId: string, stepId: string, blockId: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [editForm, setEditForm] = useState({
     title: block.title,
     content_markdown: block.content_markdown,
@@ -645,7 +859,7 @@ function PromptBlockRow({ block, onChanged }: {
       if (!data.success) throw new Error(data.error);
       toast.success('Block updated');
       setIsEditing(false);
-      onChanged();
+      onBlockUpdated(moduleId, stepId, block.id, editForm);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update block');
     } finally {
@@ -654,14 +868,17 @@ function PromptBlockRow({ block, onChanged }: {
   };
 
   const handleDelete = async () => {
+    setIsDeleteLoading(true);
     try {
       const res = await fetch(`/api/admin/prompt-blocks/${block.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       toast.success('Block deleted');
-      onChanged();
+      onBlockDeleted(moduleId, stepId, block.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete block');
+    } finally {
+      setIsDeleteLoading(false);
     }
   };
 
@@ -727,7 +944,7 @@ function PromptBlockRow({ block, onChanged }: {
           />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={!editForm.title.trim() || isSaving}>
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
@@ -742,6 +959,7 @@ function PromptBlockRow({ block, onChanged }: {
         description={`Delete "${block.title}"? This cannot be undone.`}
         confirmText="Delete"
         variant="danger"
+        isLoading={isDeleteLoading}
       />
     </div>
   );
@@ -751,7 +969,7 @@ function PromptBlockRow({ block, onChanged }: {
 function AddStepButton({ moduleId, currentCount, onAdded }: {
   moduleId: string;
   currentCount: number;
-  onAdded: () => void;
+  onAdded: (newStep: { id: string; title: string; order_index: number; instruction_markdown: string; estimated_minutes: number | null; is_required: boolean }) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -778,12 +996,19 @@ function AddStepButton({ moduleId, currentCount, onAdded }: {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       toast.success('Step added');
+      onAdded({
+        id: data.data.id,
+        title: data.data.title,
+        order_index: data.data.order_index,
+        instruction_markdown: instructionMarkdown.trim() || '',
+        estimated_minutes: estimatedMinutes,
+        is_required: isRequired,
+      });
       setTitle('');
       setInstructionMarkdown('');
       setEstimatedMinutes(5);
       setIsRequired(false);
       setIsOpen(false);
-      onAdded();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add step');
     } finally {
@@ -795,12 +1020,15 @@ function AddStepButton({ moduleId, currentCount, onAdded }: {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 mt-2"
+        className="group flex items-center gap-2 mt-3 px-3 py-2 w-full rounded-lg border border-dashed border-gray-200 bg-white hover:border-brand-300 hover:bg-brand-50/50 transition-all duration-150 cursor-pointer"
       >
-        <Plus className="w-3 h-3" />
-        Add Step
+        <div className="w-6 h-6 rounded-md bg-brand-100 flex items-center justify-center shrink-0 group-hover:bg-brand-200 transition-colors">
+          <ListChecks className="w-3.5 h-3.5 text-brand-600" />
+        </div>
+        <span className="text-xs font-medium text-gray-500 group-hover:text-brand-700 transition-colors">Add Step</span>
+        <Plus className="w-3 h-3 ml-auto text-gray-400 group-hover:text-brand-600 transition-colors" />
       </button>
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Add Step">
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setTitle(''); setInstructionMarkdown(''); setEstimatedMinutes(5); setIsRequired(false); }} title="Add Step">
         <div className="space-y-4">
           <Input
             label="Step Title"
@@ -819,7 +1047,8 @@ function AddStepButton({ moduleId, currentCount, onAdded }: {
             label="Duration (minutes)"
             type="number"
             value={estimatedMinutes}
-            onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || 0)}
+            onChange={(e) => setEstimatedMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+            min={1}
           />
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
             <input
@@ -830,7 +1059,7 @@ function AddStepButton({ moduleId, currentCount, onAdded }: {
             Required step
           </label>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setIsOpen(false); setTitle(''); setInstructionMarkdown(''); setEstimatedMinutes(5); setIsRequired(false); }}>Cancel</Button>
             <Button onClick={handleAdd} disabled={!title.trim() || isSaving}>
               {isSaving ? 'Adding...' : 'Add Step'}
             </Button>
@@ -845,7 +1074,7 @@ function AddStepButton({ moduleId, currentCount, onAdded }: {
 function AddPromptBlockButton({ stepId, currentCount, onAdded }: {
   stepId: string;
   currentCount: number;
-  onAdded: () => void;
+  onAdded: (newBlock: { id: string; title: string; order_index: number; content_markdown: string; is_copyable: boolean }) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -870,11 +1099,17 @@ function AddPromptBlockButton({ stepId, currentCount, onAdded }: {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       toast.success('Prompt block added');
+      onAdded({
+        id: data.data.id,
+        title: data.data.title,
+        order_index: data.data.order_index,
+        content_markdown: content.trim(),
+        is_copyable: isCopyable,
+      });
       setTitle('');
       setContent('');
       setIsCopyable(true);
       setIsOpen(false);
-      onAdded();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add block');
     } finally {
@@ -886,12 +1121,15 @@ function AddPromptBlockButton({ stepId, currentCount, onAdded }: {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-1"
+        className="group flex items-center gap-2 mt-2 px-3 py-1.5 w-full rounded-lg border border-dashed border-gray-200 bg-white hover:border-brand-300 hover:bg-brand-50/50 transition-all duration-150 cursor-pointer"
       >
-        <Plus className="w-3 h-3" />
-        Add Prompt Block
+        <div className="w-5 h-5 rounded-md bg-brand-100 flex items-center justify-center shrink-0 group-hover:bg-brand-200 transition-colors">
+          <MessageSquareText className="w-3 h-3 text-brand-600" />
+        </div>
+        <span className="text-xs font-medium text-gray-500 group-hover:text-brand-700 transition-colors">Add Prompt Block</span>
+        <Plus className="w-3 h-3 ml-auto text-gray-400 group-hover:text-brand-600 transition-colors" />
       </button>
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Add Prompt Block">
+      <Modal isOpen={isOpen} onClose={() => { setIsOpen(false); setTitle(''); setContent(''); setIsCopyable(true); }} title="Add Prompt Block">
         <div className="space-y-4">
           <Input
             label="Title"
@@ -915,7 +1153,7 @@ function AddPromptBlockButton({ stepId, currentCount, onAdded }: {
             placeholder="Prompt content with {{variable}} placeholders"
           />
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setIsOpen(false); setTitle(''); setContent(''); setIsCopyable(true); }}>Cancel</Button>
             <Button onClick={handleAdd} disabled={!title.trim() || !content.trim() || isSaving}>
               {isSaving ? 'Adding...' : 'Add Block'}
             </Button>

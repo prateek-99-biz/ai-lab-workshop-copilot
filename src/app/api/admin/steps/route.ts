@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         is_required: validation.data.is_required,
         order_index: orderIndex,
       })
-      .select('id, title, order_index')
+      .select('id, title, order_index, instruction_markdown, estimated_minutes, is_required')
       .single();
 
     if (error) {
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     revalidatePath('/admin/modules');
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true, data: step });
   } catch (error) {
     console.error('Steps POST error:', error);

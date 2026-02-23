@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
@@ -7,13 +8,6 @@ const createBlockSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   content_markdown: z.string().default(''),
   is_copyable: z.boolean().default(true),
-  order_index: z.number().int().min(0).optional(),
-});
-
-const updateBlockSchema = z.object({
-  title: z.string().min(1).max(200).optional(),
-  content_markdown: z.string().optional(),
-  is_copyable: z.boolean().optional(),
   order_index: z.number().int().min(0).optional(),
 });
 
@@ -72,7 +66,7 @@ export async function POST(request: NextRequest) {
         is_copyable: validation.data.is_copyable,
         order_index: orderIndex,
       })
-      .select('id, title, order_index')
+      .select('id, title, order_index, content_markdown, is_copyable')
       .single();
 
     if (error) {
@@ -80,6 +74,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to create prompt block' }, { status: 500 });
     }
 
+    revalidatePath('/admin/templates');
     return NextResponse.json({ success: true, data: block });
   } catch (error) {
     console.error('Blocks POST error:', error);

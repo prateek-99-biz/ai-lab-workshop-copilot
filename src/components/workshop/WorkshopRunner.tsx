@@ -68,6 +68,8 @@ interface WorkshopRunnerProps {
     timerEndAt: string | null;
     organization: { id: string; name: string; logo_url: string | null };
     template: { name: string; description: string | null };
+    aiToolName?: string;
+    aiToolUrl?: string;
   };
   modules: Module[];
   participant: {
@@ -255,9 +257,9 @@ export function WorkshopRunner({
     logEvent('prompt_copied', { block_id: blockId, step_id: currentStep?.id });
   };
 
-  // Open ChatGPT
-  const openChatGPT = () => {
-    window.open('https://chat.openai.com', '_blank');
+  // Open AI Tool
+  const openAITool = () => {
+    window.open(initialSession.aiToolUrl || 'https://chat.openai.com', '_blank');
     logEvent('chatgpt_opened', { step_id: currentStep?.id });
   };
 
@@ -449,14 +451,14 @@ export function WorkshopRunner({
               </div>
             )}
 
-            {/* ChatGPT Button */}
+            {/* AI Tool Button */}
             <Button
               variant="outline"
               className="w-full"
-              onClick={openChatGPT}
+              onClick={openAITool}
             >
               <ExternalLink className="w-4 h-4 mr-2" />
-              Open ChatGPT
+              Open {initialSession.aiToolName || 'ChatGPT'}
             </Button>
 
             {/* Submission Area (for required steps or last step) */}

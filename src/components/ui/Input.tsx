@@ -25,12 +25,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full px-4 py-2 border rounded-lg transition-colors bg-white/70',
+            'w-full px-3.5 py-2.5 border rounded-lg transition-colors bg-white',
             'focus:outline-none focus:ring-2 focus:ring-offset-0',
             'text-gray-900 placeholder:text-gray-400',
             error
-              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-              : 'border-white/40 focus:ring-brand-500 focus:border-brand-500',
+              ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+              : 'border-gray-300 focus:ring-brand-500 focus:border-brand-500',
             className
           )}
           {...props}
@@ -70,12 +70,12 @@ export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full px-4 py-2 border rounded-lg transition-colors resize-y min-h-[100px] bg-white/70',
+            'w-full px-3.5 py-2.5 border rounded-lg transition-colors resize-y min-h-[100px] bg-white',
             'focus:outline-none focus:ring-2 focus:ring-offset-0',
             'text-gray-900 placeholder:text-gray-400',
             error
-              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-              : 'border-white/40 focus:ring-brand-500 focus:border-brand-500',
+              ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+              : 'border-gray-300 focus:ring-brand-500 focus:border-brand-500',
             className
           )}
           {...props}

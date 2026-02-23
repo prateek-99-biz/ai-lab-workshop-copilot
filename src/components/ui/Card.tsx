@@ -10,8 +10,7 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export function Card({ className, children, ...props }: CardProps) {
   return (
     <div
-      className={cn('rounded-xl shadow-sm border border-white/30', className)}
-      style={{ background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+      className={cn('rounded-xl shadow-sm border border-gray-200 bg-white', className)}
       {...props}
     >
       {children}
@@ -26,7 +25,7 @@ interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
 export function CardHeader({ className, children, ...props }: CardHeaderProps) {
   return (
     <div
-      className={cn('px-6 py-4 border-b border-white/20', className)}
+      className={cn('px-6 py-4 border-b border-gray-200', className)}
       {...props}
     >
       {children}
@@ -83,8 +82,7 @@ interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {
 export function CardFooter({ className, children, ...props }: CardFooterProps) {
   return (
     <div
-      className={cn('px-6 py-4 border-t border-white/20 rounded-b-xl', className)}
-      style={{ background: 'rgba(255, 255, 255, 0.5)' }}
+      className={cn('px-6 py-4 border-t border-gray-100 rounded-b-xl bg-gray-50', className)}
       {...props}
     >
       {children}
