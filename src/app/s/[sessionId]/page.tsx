@@ -86,7 +86,7 @@ export default async function SessionPage({ params }: PageProps) {
       .order('order_index'),
     supabase
       .from('submissions')
-      .select('id, step_id, content')
+      .select('id, step_id, content, image_url, updated_at')
       .eq('participant_id', participant.participant_id),
   ]);
 

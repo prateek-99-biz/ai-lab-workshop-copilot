@@ -13,6 +13,8 @@ import {
   MessageCircle,
   Send,
   X,
+  ImagePlus,
+  Trash2,
 } from 'lucide-react';
 import { 
   Button, 
@@ -58,6 +60,8 @@ interface Submission {
   id: string;
   step_id: string;
   content: string;
+  image_url?: string | null;
+  updated_at?: string;
 }
 
 interface WorkshopRunnerProps {
@@ -79,6 +83,14 @@ interface WorkshopRunnerProps {
   submissions: Submission[];
 }
 
+function buildVersionedImageUrl(url: string, updatedAt?: string) {
+  if (!updatedAt) return url;
+  const version = Date.parse(updatedAt);
+  if (Number.isNaN(version)) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}v=${version}`;
+}
+
 export function WorkshopRunner({ 
   session: initialSession, 
   modules, 
@@ -90,6 +102,10 @@ export function WorkshopRunner({
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [submissionContent, setSubmissionContent] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageMarkedForRemoval, setImageMarkedForRemoval] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStuck, setIsStuck] = useState(false);
   const [isQAOpen, setIsQAOpen] = useState(false);
@@ -118,6 +134,8 @@ export function WorkshopRunner({
   const currentStep = allSteps[currentStepIndex];
   const isLastStep = currentStepIndex === allSteps.length - 1;
   const existingSubmission = submissions.find(s => s.step_id === currentStep?.id);
+  const hasEffectiveImage = !!imageFile || (!!existingSubmission?.image_url && !imageMarkedForRemoval);
+  const canSubmit = submissionContent.trim().length > 0 || hasEffectiveImage;
 
   // No longer sync with facilitator's current step - allow free navigation
   // useEffect removed to prevent navigation reset
@@ -273,13 +291,43 @@ export function WorkshopRunner({
 
   // Submit response
   const handleSubmit = async () => {
-    if (!submissionContent.trim()) {
-      toast.error('Please enter your response');
+    if (!canSubmit) {
+      toast.error('Please enter a response or upload an image');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      let imageUrl: string | null = imageMarkedForRemoval
+        ? null
+        : (existingSubmission?.image_url ?? null);
+
+      // Upload image first if a new file is selected
+      if (imageFile) {
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        formData.append('participantId', participant.id);
+        formData.append('sessionId', initialSession.id);
+        formData.append('stepId', currentStep.id);
+
+        const uploadRes = await fetch('/api/submissions/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${document.cookie.split('workshop_session_token=')[1]?.split(';')[0] || ''}`,
+          },
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        setIsUploading(false);
+
+        if (!uploadData.success) {
+          throw new Error(uploadData.error || 'Failed to upload image');
+        }
+        imageUrl = uploadData.imageUrl;
+      }
+
       const response = await fetch('/api/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,7 +335,8 @@ export function WorkshopRunner({
           participantId: participant.id,
           sessionId: initialSession.id,
           stepId: currentStep.id,
-          content: submissionContent,
+          content: submissionContent || '',
+          imageUrl,
         }),
       });
 
@@ -297,21 +346,36 @@ export function WorkshopRunner({
         throw new Error(data.error);
       }
 
-      setSubmissions(prev => [...prev.filter(s => s.step_id !== currentStep.id), data.submission]);
+      const normalizedSubmission: Submission = {
+        ...data.submission,
+        updated_at: data.submission.updated_at || new Date().toISOString(),
+      };
+      setSubmissions(prev => [...prev.filter(s => s.step_id !== currentStep.id), normalizedSubmission]);
+      setImageFile(null);
+      setImagePreview(null);
+      setImageMarkedForRemoval(false);
       await logEvent('step_completed', { step_id: currentStep.id });
       toast.success('Response submitted!');
 
       // Don't auto-advance - let user navigate manually
-    } catch {
-      toast.error('Failed to submit response');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit response');
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
   // Populate submission content if existing
   useEffect(() => {
     setSubmissionContent(existingSubmission?.content || '');
+    setImageFile(null);
+    setImagePreview(
+      existingSubmission?.image_url
+        ? buildVersionedImageUrl(existingSubmission.image_url, existingSubmission.updated_at)
+        : null
+    );
+    setImageMarkedForRemoval(false);
   }, [existingSubmission, currentStep?.id]);
 
   // Progress steps for sidebar - narrative version
@@ -474,12 +538,62 @@ export function WorkshopRunner({
                     placeholder="Paste your final prompt or response here..."
                     className="min-h-[150px]"
                   />
+
+                  {/* Image Upload */}
+                  <div>
+                    {imagePreview ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={imagePreview}
+                          alt="Upload preview"
+                          className="max-h-48 rounded-lg border border-gray-200 object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageFile(null);
+                            setImagePreview(null);
+                            setImageMarkedForRemoval(true);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-brand-400 hover:bg-brand-50/50 transition-colors">
+                        <ImagePlus className="w-5 h-5 text-gray-400" />
+                        <span className="text-sm text-gray-500">Upload a screenshot or image</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.size > 5 * 1024 * 1024) {
+                                toast.error('Image must be under 5MB');
+                                return;
+                              }
+                              setImageFile(file);
+                              setImageMarkedForRemoval(false);
+                              setImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <Button
                       onClick={handleSubmit}
                       isLoading={isSubmitting}
+                      disabled={!canSubmit}
                     >
-                      {existingSubmission ? (
+                      {isUploading ? (
+                        'Uploading image...'
+                      ) : existingSubmission ? (
                         <>
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Update Response

@@ -7,8 +7,12 @@ const submissionSchema = z.object({
   participantId: z.string().uuid(),
   sessionId: z.string().uuid(),
   stepId: z.string().uuid(),
-  content: z.string().min(1).max(10000),
-});
+  content: z.string().max(10000).optional().default(''),
+  imageUrl: z.string().url().max(2000).optional().nullable(),
+}).refine(
+  (data) => data.content.trim().length > 0 || (data.imageUrl != null && data.imageUrl.length > 0),
+  { message: 'Either text content or an image is required' }
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +49,7 @@ export async function POST(request: NextRequest) {
           session_id: validatedData.sessionId,
           step_id: validatedData.stepId,
           content: validatedData.content,
+          image_url: validatedData.imageUrl ?? null,
           updated_at: new Date().toISOString(),
         },
         {
@@ -77,6 +82,8 @@ export async function POST(request: NextRequest) {
         id: submission.id,
         step_id: submission.step_id,
         content: submission.content,
+        image_url: submission.image_url,
+        updated_at: submission.updated_at,
       },
     });
   } catch (err) {

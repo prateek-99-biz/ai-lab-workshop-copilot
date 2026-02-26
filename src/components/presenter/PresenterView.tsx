@@ -22,6 +22,7 @@ import {
   Send,
   Trash2,
   ChevronDown as ChevDown,
+  ImageIcon,
 } from 'lucide-react';
 import { Button, Timer, Card, CardContent, ProgressBar } from '@/components/ui';
 import { ParticipantList } from './ParticipantList';
@@ -654,6 +655,17 @@ export function PresenterView({
             >
               <Download className="w-4 h-4 mr-2" />
               Export CSV
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => {
+                window.open(`/session/${session.id}/gallery`, '_blank');
+              }}
+            >
+              <ImageIcon className="w-4 h-4 mr-2" />
+              Image Gallery
             </Button>
           </div>
 
