@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifySessionToken } from '@/lib/utils/session-token';
+import { checkRateLimit, rateLimitResponse } from '@/lib/utils/rate-limit';
 import { z } from 'zod';
 
 const submissionSchema = z.object({
@@ -26,6 +27,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = submissionSchema.parse(body);
+
+    // Rate limit: 20 submissions per minute per participant
+    const rl = checkRateLimit(`sub:${validatedData.participantId}`, 20, 60_000);
+    if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
     // If we have a valid token, verify it matches the request
     if (tokenPayload) {

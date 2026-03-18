@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifySessionToken } from '@/lib/utils/session-token';
+import { checkRateLimit, rateLimitResponse } from '@/lib/utils/rate-limit';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+// Magic byte signatures for each image type
+const MAGIC_BYTES: Record<string, number[][]> = {
+  'image/png': [[0x89, 0x50, 0x4E, 0x47]],
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/gif': [[0x47, 0x49, 0x46, 0x38]], // GIF8
+  'image/webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF
+};
+
+function verifyMagicBytes(buffer: ArrayBuffer, declaredType: string): boolean {
+  const bytes = new Uint8Array(buffer);
+  const signatures = MAGIC_BYTES[declaredType];
+  if (!signatures) return false;
+
+  return signatures.some(sig =>
+    sig.every((byte, i) => bytes[i] === byte)
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,12 +66,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size
+    // Validate file size (server-side enforcement)
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { success: false, error: 'File too large. Maximum size is 5MB' },
         { status: 400 }
       );
+    }
+
+    // Rate limit: 10 uploads per minute per participant
+    if (participantId) {
+      const rl = checkRateLimit(`upload:${participantId}`, 10, 60_000);
+      if (!rl.allowed) return rateLimitResponse(rl.resetAt);
     }
 
     // Determine file extension from MIME type
@@ -63,6 +88,15 @@ export async function POST(request: NextRequest) {
 
     // Convert File to ArrayBuffer then to Buffer for upload
     const arrayBuffer = await file.arrayBuffer();
+
+    // Verify magic bytes match the declared MIME type
+    if (!verifyMagicBytes(arrayBuffer, file.type)) {
+      return NextResponse.json(
+        { success: false, error: 'File content does not match declared type' },
+        { status: 400 }
+      );
+    }
+
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload to Supabase Storage (upsert to allow re-upload)

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const serviceClient = await createServiceClient();
     const { data: questions, error } = await serviceClient
       .from('session_questions')
-      .select('*')
+      .select('id, session_id, participant_id, participant_name, question_text, answer_text, is_answered, created_at, answered_at')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: false });
 
@@ -34,7 +34,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, data: questions });
+    return NextResponse.json(
+      { success: true, data: questions },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+        },
+      }
+    );
   } catch (error) {
     console.error('Questions GET error:', error);
     return NextResponse.json(

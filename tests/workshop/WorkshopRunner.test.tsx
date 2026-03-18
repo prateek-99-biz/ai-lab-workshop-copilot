@@ -1,0 +1,167 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { WorkshopRunner } from '@/components/workshop/WorkshopRunner';
+
+const pushMock = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
+vi.mock('next/image', () => ({
+  default: (props: any) => <img {...props} alt={props.alt || ''} />,
+}));
+
+vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  createClient: () => ({
+    channel: () => {
+      const channel = {
+        on: vi.fn(),
+        subscribe: vi.fn(),
+      };
+      channel.on.mockReturnValue(channel);
+      channel.subscribe.mockReturnValue(channel);
+      return channel;
+    },
+    removeChannel: vi.fn(),
+  }),
+}));
+
+function mockJsonResponse(body: unknown) {
+  return Promise.resolve({
+    json: async () => body,
+  } as Response);
+}
+
+function createProps(submissions: Array<{ id: string; step_id: string; content: string; image_url?: string | null }> = []) {
+  return {
+    session: {
+      id: '11111111-1111-1111-1111-111111111111',
+      status: 'active',
+      currentStepId: null,
+      timerEndAt: null,
+      organization: { id: 'org-1', name: 'Biz Group', logo_url: null },
+      template: { name: 'Workshop Template', description: 'Template description' },
+      aiToolName: 'ChatGPT',
+      aiToolUrl: 'https://chat.openai.com',
+    },
+    modules: [
+      {
+        id: 'module-1',
+        title: 'Module 1',
+        objective: 'Learn the fundamentals',
+        order_index: 0,
+        steps: [
+          {
+            id: 'step-1',
+            title: 'First Step',
+            instruction_markdown: 'Objective: Understand the task\nActions: Draft your response',
+            order_index: 0,
+            estimated_minutes: 5,
+            is_required: false,
+            prompt_blocks: [],
+          },
+          {
+            id: 'step-2',
+            title: 'Second Step',
+            instruction_markdown: 'Objective: Improve your draft',
+            order_index: 1,
+            estimated_minutes: 5,
+            is_required: false,
+            prompt_blocks: [],
+          },
+        ],
+      },
+    ],
+    participant: {
+      id: '22222222-2222-2222-2222-222222222222',
+      displayName: 'Test User',
+    },
+    submissions,
+  };
+}
+
+describe('WorkshopRunner soft gating', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    global.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url.includes('/api/questions') && (!init?.method || init.method === 'GET')) {
+        return mockJsonResponse({ success: true, data: [] });
+      }
+
+      if (url.includes('/api/analytics/event')) {
+        return mockJsonResponse({ success: true });
+      }
+
+      return mockJsonResponse({ success: true });
+    }) as typeof fetch;
+  });
+
+  it('shows warning modal when moving forward without completing current step', async () => {
+    render(<WorkshopRunner {...createProps()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
+
+    expect(await screen.findByText('Skip this step for now?')).toBeTruthy();
+  });
+
+  it('keeps user on current step when choosing stay and complete', async () => {
+    render(<WorkshopRunner {...createProps()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
+    expect(await screen.findByText('Skip this step for now?')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stay and complete' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Skip this step for now?')).toBeNull();
+    });
+    expect(screen.getByRole('heading', { name: 'First Step' })).toBeTruthy();
+  });
+
+  it('advances and marks previous step as skipped when choosing skip for now', async () => {
+    render(<WorkshopRunner {...createProps()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
+    expect(await screen.findByText('Skip this step for now?')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Second Step' })).toBeTruthy();
+    });
+    expect(screen.getByText('Skipped')).toBeTruthy();
+  });
+
+  it('does not warn when current step already has a submission', async () => {
+    render(
+      <WorkshopRunner
+        {...createProps([
+          {
+            id: 'sub-1',
+            step_id: 'step-1',
+            content: 'Submitted response',
+            image_url: null,
+          },
+        ])}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Step' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Second Step' })).toBeTruthy();
+    });
+    expect(screen.queryByText('Skip this step for now?')).toBeNull();
+  });
+});

@@ -189,6 +189,15 @@ input, select, textarea {
   background: rgba(255, 255, 255, 0.7);
 }
 
+/* Structured instruction sections in participant runner */
+.instruction-section-card {
+  @apply border border-gray-200 rounded-xl p-5 bg-white shadow-sm;
+}
+
+.instruction-section-heading {
+  @apply text-sm font-semibold uppercase tracking-wide text-gray-700;
+}
+
 /* Progress indicator */
 .progress-step {
   @apply relative flex items-center;
@@ -383,6 +392,10 @@ input, select, textarea {
 .quest-complete-banner {
   animation: shimmer 3s ease-in-out infinite;
   background-size: 200% 100%;
+}
+
+.incomplete-step-badge {
+  @apply text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full;
 }
 
 @keyframes shimmer {

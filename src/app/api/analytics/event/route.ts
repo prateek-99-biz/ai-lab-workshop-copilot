@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { z } from 'zod';
 
 const eventSchema = z.object({
@@ -8,6 +9,7 @@ const eventSchema = z.object({
   eventType: z.enum([
     'step_viewed',
     'step_completed',
+    'step_skipped',
     'prompt_copied',
     'stuck_signal',
     'chatgpt_opened',
@@ -22,6 +24,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validatedData = eventSchema.parse(body);
+
+    // Rate limit: 60 events per minute per participant (analytics fires frequently)
+    const rl = checkRateLimit(`evt:${validatedData.participantId}`, 60, 60_000);
+    if (!rl.allowed) return NextResponse.json({ success: true }); // silent drop for analytics
 
     const supabase = await createServiceClient();
 

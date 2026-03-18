@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Swords,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface NarrativeStep {
@@ -19,7 +20,7 @@ interface NarrativeStep {
   title: string;
   moduleTitle: string;
   moduleIndex: number;
-  status: 'completed' | 'current' | 'upcoming';
+  status: 'completed' | 'current' | 'incomplete' | 'upcoming';
   isFirstInModule: boolean;
   isLastInModule: boolean;
   isLastStep: boolean;
@@ -77,12 +78,14 @@ export function NarrativeProgressMap({
   const getModuleProgress = (moduleIndex: number) => {
     const moduleSteps = steps.filter(s => s.moduleIndex === moduleIndex);
     const completedSteps = moduleSteps.filter(s => s.status === 'completed');
+    const incompleteSteps = moduleSteps.filter(s => s.status === 'incomplete');
     return {
       completed: completedSteps.length,
       total: moduleSteps.length,
       percentage: moduleSteps.length > 0 ? (completedSteps.length / moduleSteps.length) * 100 : 0,
       isComplete: completedSteps.length === moduleSteps.length,
       hasCurrent: moduleSteps.some(s => s.status === 'current'),
+      hasIncomplete: incompleteSteps.length > 0,
     };
   };
 
@@ -159,6 +162,8 @@ export function NarrativeProgressMap({
                     ? 'bg-white shadow-md ring-2 ring-brand-300 ring-offset-1'
                     : progress.isComplete
                       ? 'bg-white/80 shadow-sm'
+                      : progress.hasIncomplete
+                        ? 'bg-amber-50/90 shadow-sm ring-1 ring-amber-200'
                       : 'bg-white/60 hover:bg-white/80',
                 )}
               >
@@ -170,6 +175,8 @@ export function NarrativeProgressMap({
                       ? 'bg-gradient-to-br ' + theme.color + ' text-white shadow-md chapter-complete-glow'
                       : isCurrentModule
                         ? 'bg-gradient-to-br ' + theme.color + ' text-white animate-pulse-slow'
+                        : progress.hasIncomplete
+                          ? 'bg-amber-100 text-amber-700'
                         : 'bg-gray-100 text-gray-400'
                   )}>
                     {progress.isComplete ? (
@@ -205,6 +212,7 @@ export function NarrativeProgressMap({
                             'h-1 rounded-full flex-1 transition-all duration-500',
                             step.status === 'completed' ? 'bg-brand-500' :
                             step.status === 'current' ? 'bg-brand-300 animate-pulse' :
+                            step.status === 'incomplete' ? 'bg-amber-300' :
                             'bg-gray-200'
                           )}
                         />
@@ -238,6 +246,8 @@ export function NarrativeProgressMap({
                         isClickable && 'cursor-pointer',
                         step.status === 'current' && 'bg-brand-50',
                         step.status === 'completed' && isClickable && 'hover:bg-gray-50',
+                        step.status === 'incomplete' && 'bg-amber-50/50',
+                        step.status === 'incomplete' && isClickable && 'hover:bg-amber-50',
                         step.status === 'upcoming' && isClickable && 'hover:bg-gray-50',
                         animatingStep === step.id && 'scale-95',
                       )}
@@ -248,10 +258,13 @@ export function NarrativeProgressMap({
                           'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500',
                           step.status === 'completed' && 'bg-brand-500 text-white',
                           step.status === 'current' && 'ring-2 ring-brand-400 ring-offset-1 bg-white text-brand-600',
+                          step.status === 'incomplete' && 'bg-amber-100 text-amber-700 ring-1 ring-amber-300',
                           step.status === 'upcoming' && 'bg-gray-100 text-gray-400',
                         )}>
                           {step.status === 'completed' ? (
                             <Check className="w-3 h-3" />
+                          ) : step.status === 'incomplete' ? (
+                            <AlertTriangle className="w-3 h-3" />
                           ) : (
                             <span>{stepIdx + 1}</span>
                           )}
@@ -259,7 +272,11 @@ export function NarrativeProgressMap({
                         {stepIdx < moduleSteps.length - 1 && (
                           <div className={cn(
                             'w-0.5 h-4 mt-0.5',
-                            step.status === 'completed' ? 'bg-brand-300' : 'bg-gray-200'
+                            step.status === 'completed'
+                              ? 'bg-brand-300'
+                              : step.status === 'incomplete'
+                                ? 'bg-amber-200'
+                                : 'bg-gray-200'
                           )} />
                         )}
                       </div>
@@ -270,6 +287,7 @@ export function NarrativeProgressMap({
                           'text-sm truncate',
                           step.status === 'completed' && 'text-gray-600',
                           step.status === 'current' && 'text-brand-700 font-semibold',
+                          step.status === 'incomplete' && 'text-amber-700 font-medium',
                           step.status === 'upcoming' && 'text-gray-400',
                         )}>
                           {step.title}
@@ -279,6 +297,9 @@ export function NarrativeProgressMap({
                       {/* Step Status */}
                       {step.status === 'current' && (
                         <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse flex-shrink-0" />
+                      )}
+                      {step.status === 'incomplete' && (
+                        <span className="incomplete-step-badge flex-shrink-0">Skipped</span>
                       )}
                       {step.isLastStep && step.status === 'upcoming' && (
                         <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />

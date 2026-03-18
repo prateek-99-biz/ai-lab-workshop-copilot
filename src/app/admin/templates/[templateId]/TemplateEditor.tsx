@@ -17,6 +17,7 @@ import {
   ListChecks,
   MessageSquareText,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import { Card, CardContent, Button, Input, TextArea, Modal, ConfirmModal } from '@/components/ui';
 import { TemplatePreview } from './TemplatePreview';
@@ -526,30 +527,44 @@ function ModuleCard({ module: mod, displayIndex, templateId, onModuleUpdated, on
     <Card>
       <div className="border-l-4 border-brand-500">
         {/* Module Header */}
-        <div className="p-4 flex items-center justify-between">
+        <div className="p-4 bg-gradient-to-r from-brand-50/60 to-transparent flex items-center justify-between">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 text-left flex-1 min-w-0"
+            className="flex items-center gap-3 text-left flex-1 min-w-0"
           >
             {isExpanded ? (
               <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />
             ) : (
               <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
             )}
+            <div className="w-9 h-9 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+              {displayIndex}
+            </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded">
+                <span className="text-xs font-medium text-brand-600 uppercase tracking-wider">
                   Module {displayIndex}
                 </span>
                 <h3 className="font-semibold text-gray-900 truncate">{mod.title}</h3>
               </div>
               {mod.objective && (
-                <p className="text-sm text-gray-500 mt-1 truncate">{mod.objective}</p>
+                <p className="text-sm text-gray-500 mt-0.5 truncate">{mod.objective}</p>
               )}
             </div>
           </button>
-          <div className="flex items-center gap-2 ml-4">
-            <span className="text-xs text-gray-500">{mod.steps.length} steps</span>
+          <div className="flex items-center gap-3 ml-4">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                <ListChecks className="w-3 h-3" />
+                {mod.steps.length} step{mod.steps.length !== 1 ? 's' : ''}
+              </span>
+              {mod.steps.length > 0 && (
+                <span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                  <Clock className="w-3 h-3" />
+                  {mod.steps.reduce((sum, s) => sum + (s.estimated_minutes ?? 0), 0)}m
+                </span>
+              )}
+            </div>
             <button
               onClick={() => {
                 setEditForm({ title: mod.title, objective: mod.objective || '' });
@@ -572,25 +587,33 @@ function ModuleCard({ module: mod, displayIndex, templateId, onModuleUpdated, on
 
         {/* Expanded Content */}
         {isExpanded && (
-          <div className="px-4 pb-4 space-y-3">
-            <div className="border-t border-gray-100 pt-3">
+          <div className="px-4 pb-4">
+            <div className="border-t border-gray-200 pt-4">
               {mod.steps.length === 0 ? (
-                <p className="text-sm text-gray-500 italic py-2">No steps in this module.</p>
+                <p className="text-sm text-gray-500 italic py-2 pl-6">No steps in this module yet. Add your first step below.</p>
               ) : (
-                mod.steps.map((step) => (
-                  <StepRow
-                    key={step.id}
-                    step={step}
-                    moduleId={mod.id}
-                    onStepUpdated={onStepUpdated}
-                    onStepDeleted={onStepDeleted}
-                    onBlockAdded={onBlockAdded}
-                    onBlockUpdated={onBlockUpdated}
-                    onBlockDeleted={onBlockDeleted}
-                  />
-                ))
+                <div className="pl-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ListChecks className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Steps</span>
+                  </div>
+                  {mod.steps.map((step) => (
+                    <StepRow
+                      key={step.id}
+                      step={step}
+                      moduleId={mod.id}
+                      onStepUpdated={onStepUpdated}
+                      onStepDeleted={onStepDeleted}
+                      onBlockAdded={onBlockAdded}
+                      onBlockUpdated={onBlockUpdated}
+                      onBlockDeleted={onBlockDeleted}
+                    />
+                  ))}
+                </div>
               )}
-              <AddStepButton moduleId={mod.id} currentCount={mod.steps.length} onAdded={(newStep) => onStepAdded(mod.id, newStep)} />
+              <div className="pl-4">
+                <AddStepButton moduleId={mod.id} currentCount={mod.steps.length} onAdded={(newStep) => onStepAdded(mod.id, newStep)} />
+              </div>
             </div>
           </div>
         )}
@@ -692,31 +715,36 @@ function StepRow({ step, moduleId, onStepUpdated, onStepDeleted, onBlockAdded, o
   };
 
   return (
-    <div className="border border-gray-100 rounded-lg mb-2 bg-white">
+    <div className="border border-gray-200 rounded-lg mb-3 bg-white shadow-sm hover:shadow-md transition-shadow border-l-[3px] border-l-brand-300">
       {/* Step header */}
-      <div className="px-3 py-2 flex items-center justify-between">
+      <div className="px-3 py-2.5 flex items-center justify-between">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2 text-left flex-1 min-w-0"
+          className="flex items-center gap-2.5 text-left flex-1 min-w-0"
         >
           {isExpanded ? (
             <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
           ) : (
             <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
           )}
-          <span className="text-xs text-gray-400 font-mono shrink-0">
-            {step.order_index + 1}.
+          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold shrink-0">
+            {step.order_index + 1}
           </span>
           <span className="text-sm font-medium text-gray-800 truncate">{step.title}</span>
-          <span className="text-xs text-gray-400 shrink-0">{step.estimated_minutes ?? 0}m</span>
+          {step.estimated_minutes != null && step.estimated_minutes > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">
+              <Clock className="w-3 h-3" />
+              {step.estimated_minutes}m
+            </span>
+          )}
           {step.is_required && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 shrink-0">
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700 font-medium shrink-0">
               Required
             </span>
           )}
         </button>
-        <div className="flex items-center gap-1 ml-2">
-          <span className="text-xs text-gray-400">{step.prompt_blocks.length} blocks</span>
+        <div className="flex items-center gap-1.5 ml-2">
+          <span className="text-xs text-gray-400">{step.prompt_blocks.length} block{step.prompt_blocks.length !== 1 ? 's' : ''}</span>
           <button
             onClick={() => {
               setEditForm({
@@ -744,15 +772,27 @@ function StepRow({ step, moduleId, onStepUpdated, onStepDeleted, onBlockAdded, o
 
       {/* Expanded: instructions + prompt blocks */}
       {isExpanded && (
-        <div className="px-3 pb-3 border-t border-gray-50">
+        <div className="px-3 pb-3 border-t border-gray-100">
           {step.instruction_markdown && (
-            <p className="text-sm text-gray-600 mt-2 mb-3 whitespace-pre-wrap">
-              {step.instruction_markdown}
-            </p>
+            <div className="mt-3 mb-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Instructions</span>
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {step.instruction_markdown}
+              </p>
+            </div>
           )}
 
           {/* Prompt Blocks */}
           <div className="space-y-2 mt-2">
+            {step.prompt_blocks.length > 0 && (
+              <div className="flex items-center gap-1.5 mb-1">
+                <MessageSquareText className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Prompt Blocks</span>
+              </div>
+            )}
             {step.prompt_blocks.length === 0 ? (
               <p className="text-xs text-gray-400 italic">No prompt blocks.</p>
             ) : (
@@ -883,16 +923,17 @@ function PromptBlockRow({ block, moduleId, stepId, onBlockUpdated, onBlockDelete
   };
 
   return (
-    <div className="border border-gray-100 rounded p-2 bg-gray-50/50">
+    <div className="border border-gray-100 rounded-lg p-2.5 bg-gray-50/60 border-l-[3px] border-l-blue-200">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
+            <MessageSquareText className="w-3.5 h-3.5 text-blue-500 shrink-0" />
             <span className="text-xs font-medium text-gray-700">{block.title}</span>
-            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
               {block.is_copyable ? 'Copyable' : 'Read only'}
             </span>
           </div>
-          <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-wrap">
+          <p className="text-xs text-gray-500 line-clamp-3 whitespace-pre-wrap pl-5.5">
             {block.content_markdown}
           </p>
         </div>

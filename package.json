@@ -12,7 +12,8 @@
     "test:ui": "vitest --ui",
     "db:migrate": "supabase db push",
     "db:seed": "npx tsx scripts/seed.ts",
-    "db:cleanup": "npx tsx scripts/cleanup.ts"
+    "db:cleanup": "npx tsx scripts/cleanup.ts",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@react-pdf/renderer": "^3.4.4",

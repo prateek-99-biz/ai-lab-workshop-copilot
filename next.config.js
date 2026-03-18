@@ -4,7 +4,9 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    optimizePackageImports: ['lucide-react'],
   },
+  productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [
       {

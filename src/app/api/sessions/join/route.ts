@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createSessionToken, setSessionTokenCookie } from '@/lib/utils/session-token';
+import { checkRateLimit, rateLimitResponse } from '@/lib/utils/rate-limit';
 import { z } from 'zod';
 
 const joinSchema = z.object({
@@ -15,6 +16,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validatedData = joinSchema.parse(body);
+
+    // Rate limit: 10 join attempts per minute per IP
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const rl = checkRateLimit(`join:${ip}`, 10, 60_000);
+    if (!rl.allowed) return rateLimitResponse(rl.resetAt);
 
     const supabase = await createServiceClient();
 

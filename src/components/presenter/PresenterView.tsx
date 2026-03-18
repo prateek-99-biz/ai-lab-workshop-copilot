@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -84,8 +84,8 @@ export function PresenterView({
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
   const [showAnswered, setShowAnswered] = useState(false);
 
-  // Flatten steps
-  const allSteps = modules.flatMap((module, moduleIndex) =>
+  // Flatten steps (memoized)
+  const allSteps = useMemo(() => modules.flatMap((module, moduleIndex) =>
     module.steps.map((step, stepIndex) => ({
       ...step,
       moduleTitle: module.title,
@@ -93,7 +93,7 @@ export function PresenterView({
       stepIndex,
       globalIndex: modules.slice(0, moduleIndex).reduce((acc, m) => acc + m.steps.length, 0) + stepIndex,
     }))
-  );
+  ), [modules]);
 
   const currentStepIndex = allSteps.findIndex(s => s.id === session.currentStepId);
   const currentStep = allSteps[currentStepIndex] || allSteps[0];
@@ -180,10 +180,9 @@ export function PresenterView({
     setCompletedCount(count || 0);
   }, [session.currentStepId, initialSession.id]);
 
+  // Fetch completion count once when current step changes (Realtime handles incremental updates)
   useEffect(() => {
     fetchCompletions();
-    const interval = setInterval(fetchCompletions, 30000);
-    return () => clearInterval(interval);
   }, [fetchCompletions]);
 
   // Map snake_case API keys to camelCase state keys

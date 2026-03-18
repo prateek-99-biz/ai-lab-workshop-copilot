@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create snapshot copies of the template content
-    // 1. Snapshot modules
+    // Create snapshot copies of the template content using batch inserts
+    // 1. Fetch all modules first
     const { data: modules } = await serviceClient
       .from('modules')
       .select('id, title, objective, order_index')
@@ -111,71 +111,98 @@ export async function POST(request: NextRequest) {
       .order('order_index');
 
     if (modules && modules.length > 0) {
-      for (const mod of modules) {
-        const { data: snapModule } = await serviceClient
-          .from('session_snapshot_modules')
-          .insert({
+      const moduleIds = modules.map(m => m.id);
+
+      // 2. Fetch all steps and blocks in parallel
+      const [stepsResult, blocksResult] = await Promise.all([
+        serviceClient
+          .from('module_steps')
+          .select('id, module_id, title, instruction_markdown, order_index, estimated_minutes, is_required')
+          .in('module_id', moduleIds)
+          .order('order_index'),
+        serviceClient
+          .from('prompt_blocks')
+          .select('id, step_id, title, content_markdown, order_index, is_copyable')
+          .order('order_index'),
+      ]);
+
+      const allSteps = stepsResult.data;
+
+      // Filter blocks to only those belonging to steps in our modules
+      const stepIds = allSteps?.map(s => s.id) || [];
+
+      // Re-fetch blocks with proper filter (need step_ids)
+      let allBlocks = blocksResult.data;
+      if (stepIds.length > 0 && allBlocks) {
+        // Filter to only relevant blocks
+        const stepIdSet = new Set(stepIds);
+        allBlocks = allBlocks.filter(b => stepIdSet.has(b.step_id));
+      }
+
+      // 3. Batch insert all module snapshots
+      const { data: snapModules } = await serviceClient
+        .from('session_snapshot_modules')
+        .insert(
+          modules.map(mod => ({
             session_id: session.id,
             original_module_id: mod.id,
             title: mod.title,
             objective: mod.objective,
             order_index: mod.order_index,
-          })
-          .select('id')
-          .single();
+          }))
+        )
+        .select('id, original_module_id');
 
-        if (!snapModule) continue;
+      if (snapModules && allSteps && allSteps.length > 0) {
+        // Build module ID mapping: original -> snapshot
+        const moduleIdMap = new Map(
+          snapModules.map(sm => [sm.original_module_id, sm.id])
+        );
 
-        // 2. Snapshot steps
-        const { data: steps } = await serviceClient
-          .from('module_steps')
-          .select('id, title, instruction_markdown, order_index, estimated_minutes, is_required')
-          .eq('module_id', mod.id)
-          .order('order_index');
+        // 4. Batch insert all step snapshots
+        const stepInserts = allSteps
+          .filter(step => moduleIdMap.has(step.module_id))
+          .map(step => ({
+            session_id: session.id,
+            snapshot_module_id: moduleIdMap.get(step.module_id)!,
+            original_step_id: step.id,
+            title: step.title,
+            instruction_markdown: step.instruction_markdown,
+            instruction_markdown_raw: step.instruction_markdown,
+            order_index: step.order_index,
+            estimated_minutes: step.estimated_minutes,
+            is_required: step.is_required,
+          }));
 
-        if (steps && steps.length > 0) {
-          for (const step of steps) {
-            const { data: snapStep } = await serviceClient
-              .from('session_snapshot_steps')
-              .insert({
-                session_id: session.id,
-                snapshot_module_id: snapModule.id,
-                original_step_id: step.id,
-                title: step.title,
-                instruction_markdown: step.instruction_markdown,
-                instruction_markdown_raw: step.instruction_markdown,
-                order_index: step.order_index,
-                estimated_minutes: step.estimated_minutes,
-                is_required: step.is_required,
-              })
-              .select('id')
-              .single();
+        const { data: snapSteps } = await serviceClient
+          .from('session_snapshot_steps')
+          .insert(stepInserts)
+          .select('id, original_step_id');
 
-            if (!snapStep) continue;
+        if (snapSteps && allBlocks && allBlocks.length > 0) {
+          // Build step ID mapping: original -> snapshot
+          const stepIdMap = new Map(
+            snapSteps.map(ss => [ss.original_step_id, ss.id])
+          );
 
-            // 3. Snapshot prompt blocks
-            const { data: blocks } = await serviceClient
-              .from('prompt_blocks')
-              .select('id, title, content_markdown, order_index, is_copyable')
-              .eq('step_id', step.id)
-              .order('order_index');
+          // 5. Batch insert all prompt block snapshots
+          const blockInserts = allBlocks
+            .filter(block => stepIdMap.has(block.step_id))
+            .map(block => ({
+              session_id: session.id,
+              snapshot_step_id: stepIdMap.get(block.step_id)!,
+              original_block_id: block.id,
+              title: block.title,
+              content_markdown: block.content_markdown,
+              content_markdown_raw: block.content_markdown,
+              order_index: block.order_index,
+              is_copyable: block.is_copyable,
+            }));
 
-            if (blocks && blocks.length > 0) {
-              await serviceClient
-                .from('session_snapshot_prompt_blocks')
-                .insert(
-                  blocks.map(block => ({
-                    session_id: session.id,
-                    snapshot_step_id: snapStep.id,
-                    original_block_id: block.id,
-                    title: block.title,
-                    content_markdown: block.content_markdown,
-                    content_markdown_raw: block.content_markdown,
-                    order_index: block.order_index,
-                    is_copyable: block.is_copyable,
-                  }))
-                );
-            }
+          if (blockInserts.length > 0) {
+            await serviceClient
+              .from('session_snapshot_prompt_blocks')
+              .insert(blockInserts);
           }
         }
       }

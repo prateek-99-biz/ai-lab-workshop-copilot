@@ -38,15 +38,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      session: {
-        id: session.id,
-        status: session.status,
-        organizationName: getJoinField(session.organization, 'name') || 'Workshop',
-        templateName: getJoinField(session.template, 'name') || 'Session',
+    return NextResponse.json(
+      {
+        success: true,
+        session: {
+          id: session.id,
+          status: session.status,
+          organizationName: getJoinField(session.organization, 'name') || 'Workshop',
+          templateName: getJoinField(session.template, 'name') || 'Session',
+        },
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=15, stale-while-revalidate=30',
+        },
+      }
+    );
   } catch (err) {
     console.error('Session verification error:', err);
     return NextResponse.json(
